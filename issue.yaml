@@ -1,0 +1,8 @@
+- name: create a issue file
+  hosts: all
+  tasks:
+    - name: replace the content in dev group
+      ansible.builtin.copy:
+        content: testing
+        dest: /etc/issue
+      when: inventory_hostname in groups['dev']

@@ -1,0 +1,11 @@
+- name: create a cron job
+  hosts: all
+  tasks:
+
+    - name: Creates a cron file under /etc/cron.d
+      ansible.builtin.cron:
+        name: create a cron job
+        minute: "*/2"
+        user: student
+        job: logger "EX294 in progress"
+        state: present

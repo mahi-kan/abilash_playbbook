@@ -1,0 +1,25 @@
+---
+# tasks file for /home/ansible/ansibleworkbook/roles/apache
+   - name: install the packages
+     yum:
+       name: httpd
+       state: latest
+ 
+   - name: Restart service httpd, in all cases
+     ansible.builtin.service:
+       name: httpd
+       state: restarted
+       enabled: yes
+   - name: Template a file to /var/www/html/index.html
+     ansible.builtin.template:
+       src: apache2.j2
+       dest: /var/www/html/index.html
+
+   - name: changing port 8080
+     ansible.builtin.lineinfile:
+       path: /etc/httpd/conf/httpd.conf
+       regexp: '^LISTEN'
+       line: "Listen {{ apache_port }}"
+     notify: Restart Apache
+     
+     

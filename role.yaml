@@ -1,0 +1,5 @@
+- name: create a roles
+  hosts: all
+  ignore_errors: yes
+  roles:
+    - apache

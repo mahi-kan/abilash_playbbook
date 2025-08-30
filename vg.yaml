@@ -1,0 +1,48 @@
+- name: create a vg 
+  hosts: all
+  ignore_errors: yes
+  tasks:
+    - name: Create a volume group
+      community.general.lvg:
+        vg: research
+        pvs: /dev/sda
+        #pesize: 1000
+        state: present
+    - name: Check Volume group is present
+      ansible.builtin.command: vgdisplay research
+      register: vginfo
+    - name: checking the debug
+      ansible.builtin.debug:
+        msg: vg is not present 
+      when: vginfo is failed
+    - name: Create a logical volume
+      community.general.lvol:
+        vg: research
+        lv: lv1
+        size: 1500M
+      register: lv1
+      when: vginfo is success
+    - name: checking the debug
+      ansible.builtin.debug:
+        msg: insufficent space in vg
+      when: lv1 is failed
+
+    - name: Create a logical volume
+      community.general.lvol:
+        vg: research
+        lv: lv1
+        size: 800M
+    - name: Create a ext4 filesystem on /dev/sdb1
+      community.general.filesystem:
+        fstype: ext4
+        dev: /dev/research/lv1
+    - name: mounting filesystem
+      ansible.posix.mount:
+        path: /lvm/
+        src: /dev/research/lv1
+        state: mounted
+        fstype: ext4
+
+
+
+

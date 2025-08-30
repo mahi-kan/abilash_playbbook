@@ -1,0 +1,25 @@
+- name: create a vg 
+  hosts: all
+  ignore_errors: yes
+  tasks:
+        
+    - name: Create a logical volume
+      ansible.posix.mount:
+        path: /dev/mapper/research-lv1
+        state: unmounted
+    - name: remove
+      community.general.lvol:
+        vg: research
+        lv: lv1
+        state: absent
+        force: yes
+    - name: Create a volume group
+      community.general.lvg:
+        vg: research
+        pvs: /dev/sda
+        state: absent
+        force: yes
+
+
+
+

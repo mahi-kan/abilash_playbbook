@@ -1,0 +1,10 @@
+- name: create a hosts in all node
+  hosts: all
+  tasks:
+    - name: copy Template a file to /etc/hosts
+      ansible.builtin.template:
+       src: /home/ansible/ansibleworkbook/myhosts.j2
+       dest: /etc/myhosts
+      when: inventory_hostname in groups['dev']
+
+

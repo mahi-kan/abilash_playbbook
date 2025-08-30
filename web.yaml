@@ -1,0 +1,47 @@
+- name: create a web file
+  hosts: all
+  ignore_errors: yes
+  tasks:
+    - name: Install the latest version of packages
+      ansible.builtin.yum:
+        name:
+        - httpd
+        state: latest
+      notify: restart httpd
+
+    - name: Create a group
+      ansible.builtin.group:
+        name: devops 
+        state: present
+
+    - name: Create a directory 
+      ansible.builtin.file:
+        path: /devweb
+        group: devops
+        state: directory
+        mode: '02775'
+        setype: httpd_sys_content_t
+
+    - name: Create a file
+      ansible.builtin.file:
+        path: /devweb/index.html
+        state: touch
+
+    - name: Copy content
+      ansible.builtin.copy:
+        content: 'Developement'
+        dest: /devweb/index.html
+    
+    - name: Create a symbolic link
+      ansible.builtin.file:
+        src: /devweb
+        dest: /var/www/html/devweb
+        state: link
+
+  handlers: 
+  - name: restart httpd 
+    service:
+      name: httpd    
+      state: restarted
+
+

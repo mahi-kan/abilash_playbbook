@@ -1,0 +1,11 @@
+- name: create a users and group
+  hosts: all
+  vars_files:
+    - user_list.yaml
+    - vault.yaml
+  tasks: 
+    - name: create a group1
+      ansible.builtin.group:
+        name: opsdev
+        state: present
+      when: inventory_hostname in groups['dev'] or inventory_hostaname in groups['test']

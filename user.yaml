@@ -1,0 +1,42 @@
+- name: create a users and group
+  hosts: all
+  ignore_errors: true
+  vars_files:
+    - user_list.yaml
+    - vault.yaml
+  tasks: 
+    - name: create a group1
+      ansible.builtin.group:
+        name: opsdev
+        state: present
+      when: inventory_hostname in groups['dev'] or inventory_hostaname in groups['test']
+
+    - name: create a group2
+      ansible.builtin.group:
+        name: opsmgr
+        state: present
+      when: inventory_hostaname in groups['test']
+
+    - name: Add the user in opsdev
+      ansible.builtin.user:
+        name: "{{item.name}}"
+        uid: "{{item.uid}}"
+        group: opsdev
+        state: present
+        password: "{{pw_developer | password_hash('sha256')}}"
+        password_expire_max: "{{item.password_expire_days}}"
+      loop: 
+        "{{users}}"
+      when: item.job == "developer" and (inventory_hostname in groups['dev'] or inventory_hostaname in groups['test'])
+
+    - name: Add the user in opsmgr
+      ansible.builtin.user:
+        name: "{{item.name}}"
+        uid: "{{item.uid}}"
+        group: opsmgr
+        state: present
+        password: "{{pw_manager | password_hash('sha256')}}"
+        password_expire_max: "{{item.password_expire_days}}"
+      loop: 
+        "{{users}}"
+      when: item.job == "mananger" and inventory_hostaname in groups['test']
