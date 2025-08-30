@@ -1,0 +1,14 @@
+echo "# abilash_playbbook" >> README.md
+git init
+git config --global user.name "Your Name"
+git config --global user.email "your_github_email@example.com"
+git add .
+git commit -m "first commit"
+git branch -M main
+git remote add origin git@github.com:mahi-kan/abilash_playbbook.git
+git push -u origin main
+
+----next time to add new files -------
+git add .
+git commit -m "updated files"
+git push
