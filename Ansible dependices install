@@ -1,1 +1,516 @@
+1. Ansible installation, inventory and ansible.config(Q)
+
+yum install pip ansible-core vim-enhanced 
+
+pip install --upgrade ansible
+
+ansible-galaxy collection install ansible.posix [For mount, sysctl.conf changes required]
+
+ansible.community.general [For lvm]
+
+doubt: managed host public key and private key
+
+note: in vi [for findings /default ,, next search 'n'] 
+
+
+mounted → Mount now and add /etc/fstab entry
+
+unmounted → Unmount now, but keep /etc/fstab entry
+
+present → Only add /etc/fstab entry (don’t mount now)
+
+absent → Remove /etc/fstab entry
+
+ephemeral → Mount now, but don’t add to /etc/fstab ✅ (temporary)
+
+
+
+stepl 1: Vim inventory
+
+ip of client
+
+step 2: ansible.cfg
+
+ more /etc/ansible/ansible.cfg
+
+[defaults]
+remote_user=student
+inventory=./inventory or /home/ansible/ansibleworkbook/inventory
+ask_pass=false
+host_key_checking=false
+
+[privilege_escalation]
+become=true
+become_method=sudo
+become_user=root
+become_ask_pass=false
+:wq
+
+step 3: ansible all -m ping
+
+output:
+192.168.1.106 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+
+
+step4: ssh-keygen -t rsa
+
+step5: ssh-copyid student@192.168.1.106
+
+Client Details Modification
+
+Make a user with with sudo permission {visudo}
+
+student ALL=(ALL)       NOPASSWD: ALL
+
+2. create a reposistory
+
+step 1: ansible-doc -l
+step 2: ansible-doc ansible.builtin.yum_repository
+step 3: vim repo.yaml
+- name: create a repo file
+  hosts: all
+  tasks:
+    - name: Add multiple repositories into the same file (1/2)
+      ansible.builtin.yum_repository:
+        name: Baseos
+        description: Base Description
+        file: guru
+        baseurl: file:///mnt/BaseOs
+        enabled: yes
+
+    - name: Add multiple repositories into the same file (2/2)
+      ansible.builtin.yum_repository:
+        name: Appstream
+        description: App Description
+        file: guru
+        baseurl: file:///mnt/AppStream
+        enabled: yes
+:wq
+step 4: ansible-playbook repo.yaml --syntax-check
+step 5: ansible-playbook repo.yaml
+
+check in the client m/c whether repo was created or not. [/etc/yum.repos.d/]
+
+3. Install the Packages
+
+ansible-doc -l
+
+ansible-doc ansible.builtin.yum-- Take the Example type  
+
+step 1:
+
+ vi packages.yaml
+- name: create a repo file
+  hosts: dev
+  tasks:
+   - name: Install the latest version of packages
+     ansible.builtin.yum:
+       name:
+         - maraiadb-server
+       state: latest
+     ignore_errors: True
+
+   - name: Install the latest version of packages
+     ansible.builtin.yum:
+       name:
+         - vsftpd
+       state: latest
+:wq
+
+step 2: ansible-playbook packages.yaml --syntax-check
+
+ansible-playbook packages.yaml
+
+step 3: Checking
+
+ansible all -m command -a 'yum list installed |grep -i vsftpd'
+
+
+4. Replace the file /etc/issue on all managed nodes.
+
+vi issue.yaml
+
+- name: create a issue file
+  hosts: all
+  tasks:
+    - name: replace the content in dev group
+      ansible.builtin.copy:
+        content: testing
+        dest: /etc/issue
+      when: inventory_hostname in groups['dev']
+
+Results:
+
+cat /etc/issue
+testing
+
+
+5. Create a playbook webcontent.yml and it should run on dev group
+
+- name: create a web file
+  hosts: all
+  ignore_errors: yes
+  tasks:
+    - name: Install the latest version of packages
+      ansible.builtin.yum:
+        name:
+        - httpd
+        state: latest
+      notify: restart httpd
+
+    - name: Create a group
+      ansible.builtin.group:
+        name: devops
+        state: present
+
+    - name: Create a directory
+      ansible.builtin.file:
+        path: /devweb
+        group: devops
+        state: directory
+        mode: '02775'
+        setype: httpd_sys_content_t
+   - name: Create a file
+      ansible.builtin.file:
+        path: /devweb/index.html
+        state: touch
+
+    - name: Copy content
+      ansible.builtin.copy:
+        content: 'Developement'
+        dest: /devweb/index.html
+
+    - name: Create a symbolic link
+      ansible.builtin.file:
+        src: /devweb
+        dest: /var/www/html/devweb
+        state: link
+
+  handlers:
+  - name: restart httpd
+    service:
+      name: httpd
+      state: restarted
+
+
+    - name: Create a file
+      ansible.builtin.file:
+        path: /devweb/index.html
+        state: touch
+
+    - name: Copy content
+      ansible.builtin.copy:
+        content: 'Developement'
+        dest: /devweb/index.html
+
+    - name: Create a symbolic link
+      ansible.builtin.file:
+        src: /devweb
+        dest: /var/www/html/devweb
+        state: link
+
+Important Tips
+
+Ansible facts:
+
+ansible all -m setup
+ansible all -m setup -a "filter=ansible_processor"
+ansible all -m setup -a "filter=ansible_memtotal_mb"
+ansible all -m setup -a "filter=ansible_hostname"
+
+
+6. Collect hardware report using playbook in all nodes
+
+- name: create a web file
+  hosts: all
+  ignore_errors: yes
+  tasks:
+
+    - name: Touch the same file
+      ansible.builtin.file:
+        path: /root/hwreport.txt
+        state: touch
+
+
+    - name: Touch the same file
+      ansible.builtin.file:
+        path: /root/hwreport1.txt
+        state: touch
+
+    - name: Copy using inline content
+      ansible.builtin.copy:
+        content: |
+          #hwreport
+          HOSTNAME= "{{ ansible_hostname }}"
+          MEMORY= "{{ ansible_memtotal_mb }}"
+          BIOS= " {{ ansible_bios_version }}"
+          CPU= " {{ ansible_processor }}"
+          DISK_SIZE= " {{ ansible_devices['nvme0n1']['size'] }}"
+        dest: /root/hwreport.txt
+
+   - name: Copy using inline content
+      ansible.builtin.copy:
+        content: |
+
+          HOSTNAME= "{{ ansible_hostname | default ('NONE') }}"
+          MEMORY= "{{ ansible_memtotal_mb }}"
+          BIOS= " {{ ansible_bios_version }}"
+          CPU= " {{ ansible_processor }}"
+          DISK_SIZE= " {{ ansible_devices['nvme0n1']['size'] }}"
+          DISK_SIZE= " {{ ansible_devices['nvme0n2']['size'] | default('NONE') }}"
+        dest: /root/hwreport1.txt
+
+7. Download the file http://content.example.com/Rhce/myhosts.j2i) 
+
+
+myhosts.j2 is having the content.
+127.0.0.1 localhost.localdomain localhost
+192.168.0.1 localhost.localdomain localhost
+
+ii) The file should collect all node information like ipaddress,fqdn,hostname
+and it should be the same as in the /etc/hosts file,
+if playbook run in all the managed node it must store in /etc/myhosts.
+
+Answer:
+
+step 1: create or download a file from http://content.example.com/Rhce/myhosts.j2i
+
+vim myhosts.j2
+
+127.0.0.1 localhost.localdomain localhost
+192.168.0.1 localhost.localdomain localhost
+{%for host in groups['all']%}
+{{hostvars[host] ['ansible_facts'] ['default_ipv4'] ['address']}} {{hostvars[host] ['ansible_facts'] ['fqdn']}} {{hostvars[host] ['ansible_facts'] ['hostname']}}
+{%endfor%}
+
+:wq
+
+step 2: create a yaml file:
+
+- name: create a hosts in all node
+  hosts: all
+  tasks:
+    - name: copy Template a file to /etc/hosts
+      ansible.builtin.template:
+       src: /home/ansible/ansibleworkbook/myhosts.j2
+       dest: /etc/myhosts
+      when: inventory_hostname in groups['dev']
+:wq
+
+step 3:
+
+ansile-playbook hosts.yaml --syntax-check
+
+ansile-playbook hosts.yaml
+
+step 4: check in host
+
+cat /etc/myhosts
+
+
+8. Create a logical volume named data of 1500M size from the volume group research
+and if 1500M size is not created, then atleast it should create 800M size.
+
+name: create a vg
+  hosts: all
+  ignore_errors: yes
+  tasks:
+    - name: Create a volume group
+      community.general.lvg:
+        vg: research
+        pvs: /dev/sda
+        state: present
+    - name: Check Volume group is present
+      ansible.builtin.command: vgdisplay research
+      register: vginfo
+    - name: checking the debug
+      ansible.builtin.debug:
+        msg: vg is not present
+      when: vginfo is failed
+    - name: Create a logical volume
+      community.general.lvol:
+        vg: research
+        lv: lv1
+        size: 1500M
+      register: lv1
+      when: vginfo is success
+    - name: checking the debug
+      ansible.builtin.debug:
+      msg: insufficent space in vg
+      when: lv1 is failed
+
+    - name: Create a logical volume
+      community.general.lvol:
+        vg: research
+        lv: lv1
+        size: 800M
+    - name: Create a ext4 filesystem on /dev/sdb1
+      community.general.filesystem:
+        fstype: ext4
+        dev: /dev/research/lv1
+    - name: mounting filesystem
+      ansible.posix.mount:
+        path: /lvm/
+        src: /dev/research/lv1
+        state: mounted
+        fstype: ext4
+
+
+9. Roles:
+
+- name: Template a file to /var/www/html/index.html
+  ansible.builtin.template:
+    src: apache2.j2
+    dest: /var/www/html/index.html
+
+templete:
+my HOSTNAME is "{{ ansible_hostname }}"
+
+
+
+- name: Configure Apache listen port
+  ansible.builtin.lineinfile:
+    path: /etc/httpd/conf/httpd.conf
+    regexp: '^Listen '
+    line: "Listen {{ apache_port }}"
+    notify: Restart Apache
+
+- name: Restart Apache
+  ansible.builtin.service:
+    name: httpd
+    state: restarted
+
+# Default value (can be overridden by group_vars)
+apache_port: 80
+
+
+step 1: mkdir roles
+step 2: ansible-galaxy init /home/ansible/ansibleworkbook/roles/apache
+step 3: cd /home/ansible/ansibleworkbook/roles/apache
+step 4: ll
+step 5: 
+.
+├── defaults
+│   └── main.yml
+├── files
+├── handlers
+│   └── main.yml
+├── meta
+│   └── main.yml
+├── README.md
+├── tasks
+│   └── main.yml
+├── templates
+│   └── apache2.j2
+├── tests
+│   ├── inventory
+│   └── test.yml
+└── vars
+    └── main.yml
+step 4: 
+
+├── tasks
+│   └── main.yml
+
+ - name: install the packages
+     yum:
+       name: httpd
+       state: latest
+
+   - name: Restart service httpd, in all cases
+     ansible.builtin.service:
+       name: httpd
+       state: restarted
+       enabled: yes
+   - name: Template a file to /var/www/html/index.html
+     ansible.builtin.template:
+       src: apache2.j2
+       dest: /var/www/html/index.html
+
+   - name: changing port 8080
+     ansible.builtin.lineinfile:
+       path: /etc/httpd/conf/httpd.conf
+       regexp: '^LISTEN'
+       line: "Listen {{ apache_port }}"
+     notify: Restart Apache
+step 5: 
+
+├── templates
+│   └── apache2.j2
+
+vim apache2.j2
+
+my HOSTNAME is "{{ ansible_hostname }}"
+
+:wq
+
+step 6:
+
+├── handlers
+│   └── main.yml
+
+- name: Restart Apache
+  ansible.builtin.service:
+    name: httpd
+    state: restarted
+
+step 7:
+
+└── vars
+    └── main.yml
+apache_port: 8080
+
+:wq
+
+
+step 7: create a role.yaml 
+
+- name: create a roles
+  hosts: all
+  ignore_errors: yes
+  roles:
+    - apache
+
+:wq
+
+step 8:
+
+ansible-playbook role.yaml --syntax-check
+
+ansible-playbook role.yaml
+
+
+
+echo "# abilash_playbbook" >> README.md
+git init
+git config --global user.name "Your Name"
+git config --global user.email "your_github_email@example.com"
+git add .
+git commit -m "first commit"
+git branch -M main
+git remote add origin git@github.com:mahi-kan/abilash_playbbook.git
+git push -u origin main
+
+----next time to add new files -------
+git add .
+git commit -m "updated files"
+git push
+
+
+
+
+
+
+
+
+
+
+
+
 
