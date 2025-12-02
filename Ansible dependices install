@@ -6,7 +6,7 @@ pip install --upgrade ansible
 
 ansible-galaxy collection install ansible.posix [For mount, sysctl.conf changes required]
 
-ansible.community.general [For lvm]
+ansible-galaxy collection install community.general [For lvm]
 
 doubt: managed host public key and private key
 
