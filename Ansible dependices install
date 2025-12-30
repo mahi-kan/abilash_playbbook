@@ -220,6 +220,7 @@ Important Tips
 Ansible facts:
 
 ansible all -m setup
+ansible all -m setup |grep fqdn
 ansible all -m setup -a "filter=ansible_processor"
 ansible all -m setup -a "filter=ansible_memtotal_mb"
 ansible all -m setup -a "filter=ansible_hostname"
